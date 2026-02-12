@@ -1,8 +1,12 @@
 
+"use client";
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Play, Pause, RotateCcw } from 'lucide-react';
+import { Play, Pause, RotateCcw, Zap, Sparkles } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const FOCUS_TIME = 25 * 60; // 25 minutes
 const BREAK_TIME = 5 * 60; // 5 minutes
@@ -20,12 +24,29 @@ export function PomodoroTimer() {
             }, 1000);
         } else if (timeLeft === 0) {
             setIsActive(false);
+
+            // Check if sound is enabled in settings
+            const soundEnabled = localStorage.getItem('focusflow-sound') !== 'false';
+            if (soundEnabled) {
+                try {
+                    const audio = new Audio('/notification.mp3');
+                    audio.play().catch(() => { }); // Silent fail if no file
+                } catch (e) {
+                    // Ignore audio errors
+                }
+            }
+
             if (mode === 'focus') {
-                alert("Focus session completed! Take a break.");
+                // Always show confetti on focus completion
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 },
+                    colors: ['#818cf8', '#c084fc', '#f472b6']
+                });
                 setMode('break');
                 setTimeLeft(BREAK_TIME);
             } else {
-                alert("Break over! Ready to focus?");
                 setMode('focus');
                 setTimeLeft(FOCUS_TIME);
             }
@@ -48,50 +69,122 @@ export function PomodoroTimer() {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const progress = ((mode === 'focus' ? FOCUS_TIME : BREAK_TIME) - timeLeft) / (mode === 'focus' ? FOCUS_TIME : BREAK_TIME) * 100;
+    const totalTime = mode === 'focus' ? FOCUS_TIME : BREAK_TIME;
+    const progress = ((totalTime - timeLeft) / totalTime) * 100;
+
+    // Circular Progress Calculation
+    const radius = 140;
+    const stroke = 8;
+    const normalizedRadius = radius - stroke * 2;
+    const circumference = normalizedRadius * 2 * Math.PI;
+    const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+    const isBreak = mode === 'break';
 
     return (
-        <Card className={`text-center transition-colors ${mode === 'break' ? 'border-emerald-200 bg-emerald-50' : 'border-indigo-200 bg-indigo-50'}`}>
-            <CardHeader>
-                <CardTitle className="flex flex-col items-center justify-center space-y-2">
-                    <span className="text-xs uppercase tracking-widest font-bold text-slate-500">
-                        {mode === 'focus' ? 'Focus Session' : 'Short Break'}
-                    </span>
-                    <div className="text-6xl font-black text-slate-900 font-mono tracking-tighter">
-                        {formatTime(timeLeft)}
+        <Card className="relative overflow-hidden border-0 bg-slate-900/60 backdrop-blur-2xl shadow-[0_0_50px_-12px_rgba(99,102,241,0.25)] rounded-3xl group">
+            {/* Dynamic Background Gradient */}
+            <div
+                className={`absolute inset-0 opacity-20 transition-all duration-1000 bg-gradient-to-br ${isBreak
+                    ? 'from-emerald-500/30 via-teal-500/10 to-transparent'
+                    : 'from-indigo-500/30 via-purple-500/10 to-transparent'
+                    }`}
+            />
+
+            <CardContent className="flex flex-col items-center pt-12 pb-12 relative z-10">
+
+                {/* Mode Indicator Pill */}
+                <motion.div
+                    layout
+                    className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-8 border transition-colors duration-500 ${isBreak
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                        }`}
+                >
+                    {isBreak ? (
+                        <Sparkles className="w-3 h-3 animate-pulse" />
+                    ) : (
+                        <Zap className="w-3 h-3 animate-pulse" />
+                    )}
+                    {isBreak ? 'Recharge Phase' : 'Deep Focus Mode'}
+                </motion.div>
+
+                {/* Circular Timer Visualization */}
+                <div className="relative flex items-center justify-center mb-10 group-hover:scale-105 transition-transform duration-700 ease-out">
+                    {/* Ambient Glow behind timer */}
+                    <div className={`absolute inset-0 rounded-full blur-3xl opacity-20 transition-colors duration-1000 ${isBreak ? 'bg-emerald-500' : 'bg-indigo-600'
+                        }`} />
+
+                    <svg
+                        height={radius * 2}
+                        width={radius * 2}
+                        className="transform -rotate-90 pointer-events-none drop-shadow-2xl"
+                    >
+                        {/* Background Circle */}
+                        <circle
+                            stroke="rgba(255,255,255,0.05)"
+                            strokeWidth={stroke}
+                            fill="transparent"
+                            r={normalizedRadius}
+                            cx={radius}
+                            cy={radius}
+                        />
+                        {/* Animated Progress Circle */}
+                        <circle
+                            stroke={isBreak ? '#34d399' : '#818cf8'}
+                            strokeWidth={stroke}
+                            strokeDasharray={circumference + ' ' + circumference}
+                            style={{ strokeDashoffset, transition: 'stroke-dashoffset 1s linear' }}
+                            strokeLinecap="round"
+                            fill="transparent"
+                            r={normalizedRadius}
+                            cx={radius}
+                            cy={radius}
+                            className="drop-shadow-[0_0_15px_rgba(129,140,248,0.5)]"
+                        />
+                    </svg>
+
+                    {/* Timer Text */}
+                    <div className="absolute inset-0 flex items-center justify-center flex-col">
+                        <AnimatePresence mode='wait'>
+                            <motion.span
+                                key={timeLeft}
+                                initial={{ opacity: 0.5, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className={`text-7xl font-bold font-mono tracking-tighter tabular-nums text-transparent bg-clip-text bg-gradient-to-br ${isBreak
+                                    ? 'from-emerald-300 to-teal-500'
+                                    : 'from-white via-indigo-200 to-indigo-400'
+                                    }`}
+                            >
+                                {formatTime(timeLeft)}
+                            </motion.span>
+                        </AnimatePresence>
+                        <span className="text-sm text-slate-400 font-medium mt-2 uppercase tracking-widest opacity-60">
+                            {isActive ? 'Session Active' : 'Ready to Start'}
+                        </span>
                     </div>
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center gap-4">
-                {/* Progress Bar */}
-                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                        className={`h-full transition-all duration-1000 ease-linear ${mode === 'break' ? 'bg-emerald-500' : 'bg-indigo-600'}`}
-                        style={{ width: `${progress}%` }}
-                    />
                 </div>
 
-                <div className="flex items-center gap-4">
+                {/* Controls */}
+                <div className="grid grid-cols-2 gap-4 w-full max-w-xs">
                     <Button
                         onClick={toggleTimer}
-                        variant="primary"
-                        className={`w-32 h-12 text-lg rounded-full shadow-lg ${mode === 'break'
-                                ? 'bg-emerald-600 hover:bg-emerald-700'
-                                : 'bg-indigo-600 hover:bg-indigo-700'
+                        className={`h-14 text-lg font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all border-0 text-white ${isBreak
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/25'
+                            : 'bg-gradient-to-r from-indigo-500 to-purple-600 shadow-indigo-500/30'
                             }`}
                     >
-                        {isActive ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
+                        {isActive ? <Pause className="mr-2 h-5 w-5 fill-current" /> : <Play className="mr-2 h-5 w-5 fill-current" />}
                         {isActive ? 'Pause' : 'Start'}
                     </Button>
 
                     <Button
                         onClick={resetTimer}
                         variant="ghost"
-                        size="icon"
-                        className="rounded-full h-12 w-12 hover:bg-white/50 text-slate-500"
-                        title="Reset Timer"
+                        className="h-14 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5 rounded-2xl text-base font-medium backdrop-blur-sm transition-all"
                     >
-                        <RotateCcw className="h-5 w-5" />
+                        <RotateCcw className="mr-2 h-5 w-5" />
+                        Reset
                     </Button>
                 </div>
             </CardContent>

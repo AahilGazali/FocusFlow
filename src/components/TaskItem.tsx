@@ -1,11 +1,13 @@
 
+"use client";
+
 import React from 'react';
 import { TaskType } from '@/lib/types';
-import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Check, X, Calendar, Book } from 'lucide-react';
+import { Check, X, Calendar, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TaskItemProps {
     task: TaskType;
@@ -17,44 +19,84 @@ export function TaskItem({ task, onToggle, onDelete }: TaskItemProps) {
     const isCompleted = task.completed;
 
     return (
-        <Card className={cn("transition-all duration-300 hover:shadow-md", isCompleted ? "bg-slate-50 border-slate-200" : "bg-white")}>
-            <CardContent className="flex items-center justify-between p-4">
-                <div className="flex items-start gap-4 flex-1">
-                    <Button
-                        variant={isCompleted ? "primary" : "outline"}
-                        size="sm"
-                        className={cn("h-6 w-6 rounded-full p-0 flex items-center justify-center shrink-0 mt-0.5", isCompleted ? "bg-emerald-500 hover:bg-emerald-600 border-emerald-500" : "")}
-                        onClick={() => onToggle(task.id)}
-                    >
-                        {isCompleted && <Check className="h-3 w-3 text-white" />}
-                    </Button>
+        <motion.div
+            layout
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            whileHover={{ scale: 1.01 }}
+            className="group relative"
+        >
+            <div
+                className={cn(
+                    "relative overflow-hidden rounded-xl border p-4 transition-all duration-300 backdrop-blur-md",
+                    isCompleted
+                        ? "bg-slate-900/40 border-slate-800/50"
+                        : "bg-slate-800/40 border-white/10 hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10"
+                )}
+            >
+                {/* Glow Effects */}
+                {!isCompleted && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                )}
 
-                    <div className="flex-1 space-y-1">
-                        <h4 className={cn("font-medium text-sm leading-none", isCompleted && "text-slate-500 line-through")}>
-                            {task.title}
-                        </h4>
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
-                            <span className="flex items-center gap-1">
-                                <Book className="h-3 w-3 text-indigo-500" />
-                                {task.subject}
-                            </span>
-                            <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3 text-orange-500" />
-                                {format(new Date(task.deadline), 'MMM d, yyyy')}
-                            </span>
+                <div className="flex items-center justify-between relative z-10">
+                    <div className="flex items-center gap-4 flex-1">
+                        <button
+                            onClick={() => onToggle(task.id)}
+                            className={cn(
+                                "h-6 w-6 rounded-full flex items-center justify-center transition-all duration-300 border-2",
+                                isCompleted
+                                    ? "bg-emerald-500 border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                                    : "bg-transparent border-slate-600 hover:border-indigo-400"
+                            )}
+                        >
+                            <AnimatePresence>
+                                {isCompleted && (
+                                    <motion.div
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        exit={{ scale: 0 }}
+                                    >
+                                        <Check className="h-3 w-3 text-white stroke-[3]" />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </button>
+
+                        <div className="flex-1 min-w-0">
+                            <h4 className={cn(
+                                "font-medium text-base truncate transition-colors duration-300",
+                                isCompleted ? "text-slate-500 line-through decoration-slate-600" : "text-slate-200 group-hover:text-white"
+                            )}>
+                                {task.title}
+                            </h4>
+                            <div className="flex items-center gap-3 mt-1 text-xs font-medium text-slate-500">
+                                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-800/50 border border-slate-700/50 text-indigo-300">
+                                    <BookOpen className="h-3 w-3" />
+                                    {task.subject}
+                                </span>
+                                <span className={cn(
+                                    "flex items-center gap-1.5",
+                                    new Date(task.deadline) < new Date() && !isCompleted ? 'text-red-400' : 'text-slate-400'
+                                )}>
+                                    <Calendar className="h-3 w-3" />
+                                    {format(new Date(task.deadline), 'MMM d')}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-slate-400 hover:text-red-500 h-8 w-8 p-0"
-                    onClick={() => onDelete(task.id)}
-                >
-                    <X className="h-4 w-4" />
-                </Button>
-            </CardContent>
-        </Card>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        onClick={() => onDelete(task.id)}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        </motion.div>
     );
 }
