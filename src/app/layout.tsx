@@ -27,6 +27,38 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const removeDevOverlay = () => {
+                  const selectors = [
+                    '#__next-build-watcher',
+                    '[data-nextjs-dialog]',
+                    '[data-nextjs-dialog-overlay]',
+                    'nextjs-portal',
+                    '[data-nextjs-toast]',
+                    '[data-nextjs-toast-container]',
+                    '.__next-dev-overlay',
+                    '.__next-dev-overlay-base'
+                  ];
+                  selectors.forEach(selector => {
+                    try {
+                      const elements = document.querySelectorAll(selector);
+                      elements.forEach(el => el.remove());
+                    } catch(e) {}
+                  });
+                };
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', removeDevOverlay);
+                } else {
+                  removeDevOverlay();
+                }
+                setInterval(removeDevOverlay, 100);
+              })();
+            `,
+          }}
+        />
         {children}
       </body>
     </html>
